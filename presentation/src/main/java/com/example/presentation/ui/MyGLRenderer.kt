@@ -15,7 +15,7 @@ import javax.microedition.khronos.opengles.GL10
 import kotlin.math.cos
 import kotlin.math.sin
 
-class MyGLRenderer(private val context: Context) : GLSurfaceView.Renderer {
+class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
 
     private lateinit var sun: Sphere
     private lateinit var mercury: Sphere
@@ -28,91 +28,155 @@ class MyGLRenderer(private val context: Context) : GLSurfaceView.Renderer {
     private lateinit var moon: Sphere
     private lateinit var galaxyBackground: Square
     private lateinit var saturnRing: Ring
+    private lateinit var transparentCube: Cube
 
-    private val modelMatrix = FloatArray(16) //трансформация объектов
-    private val projectionMatrix = FloatArray(16) //преобразование 3D координат в 2D
-    private val viewMatrix = FloatArray(16) //позиционирование камеры
-    private val modelViewProjectionMatrix = FloatArray(16) //матрица моедли, вида и проекции
+    private val modelMatrix = FloatArray(16)
+    private val projectionMatrix = FloatArray(16)
+    private val viewMatrix = FloatArray(16)
+    private val modelViewProjectionMatrix = FloatArray(16)
 
-    private val planetOrbitAngles = FloatArray(7) { 0f } // Для орбит планет
-    private val planetRotationAngles = FloatArray(7) { 0f } // Для вращения планет вокруг своей оси
+    private val planetOrbitAngles = FloatArray(8) { 0f } // Для орбит планет
+    private val planetRotationAngles = FloatArray(8) { 0f } // Для вращения планет вокруг своей оси
     private var moonOrbitAngle = 0f
     private var moonRotationAngle = 0f
     private var saturnRingRotationAngle = 0f
 
     private val rotationSpeed = 0.5f // Скорость вращения планет
-    private val scope = CoroutineScope(Dispatchers.Main + Job()) //ассинхрон для каждой планеты
+    private val scope = CoroutineScope(Dispatchers.Main + Job())
 
+    private var currentPlanetIndex = 2
+    private lateinit var planets: List<Pair<String, Sphere>>
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        // Установка цвета фона и включение Z-буфера
         GLES20.glClearColor(0f, 0f, 0f, 1f)
-        //Z буффер для правильного рендеринга
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
 
-        // Загрузка текстур для Солнца, планет и Луны
         sun = Sphere(loadTexture(R.drawable.sun_texture))
         mercury = Sphere(loadTexture(R.drawable.mercury_texture))
         venus = Sphere(loadTexture(R.drawable.venus_texture))
         earth = Sphere(loadTexture(R.drawable.earth_texture))
         mars = Sphere(loadTexture(R.drawable.mars_texture))
-        jupiter = Sphere(loadTexture(R.drawable.jupiter_texture_2))
+        jupiter = Sphere(loadTexture(R.drawable.jupiter_texture))
         saturn = Sphere(loadTexture(R.drawable.saturn_texture))
         uranus = Sphere(loadTexture(R.drawable.uranus_texture))
         moon = Sphere(loadTexture(R.drawable.moon_texture))
-        saturnRing = Ring(loadTexture(R.drawable.saturn_ring), outerRadius = 5f, innerRadius = 3.5f, segments = 64)
+        saturnRing = Ring(loadTexture(R.drawable.saturn_texture), 5f, 3.5f, 64)
         galaxyBackground = Square(loadTexture(R.drawable.galaxy_texture))
+        transparentCube = Cube()
+
+        planets = listOf(
+            "Mercury" to mercury,
+            "Venus" to venus,
+            "Earth" to earth,
+            "Moon" to moon,
+            "Mars" to mars,
+            "Jupiter" to jupiter,
+            "Saturn" to saturn,
+            "Uranus" to uranus
+
+        )
     }
 
     override fun onDrawFrame(gl: GL10?) {
         // Очистка экрана и Z-буфера
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
-        // Отрисовка фона галактики
         drawBackground()
-
-        // Настройка камеры
         setupCamera()
-
-        // Отрисовка Солнца
         drawSun()
-
-        // Отрисовка вращающихся планет
         drawOrbitingPlanets()
+        drawTransparentCube()
 
-        // Обновление углов орбит и вращения планет
         scope.launch {
             updateOrbitAndRotationAngles()
         }
     }
 
-    private fun drawBackground() {
-        // Отключаем буфер глубины для отрисовки фона
-        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
+    fun returnPlanetIndex(): Int {
+        return currentPlanetIndex;
+    }
+    fun selectNextPlanet() {
+        currentPlanetIndex = (currentPlanetIndex + 1) % planets.size
+    }
 
-        // Настраиваем матрицу модели для фона
+    fun selectPreviousPlanet() {
+        currentPlanetIndex = if (currentPlanetIndex == 0) planets.size - 1 else currentPlanetIndex - 1
+    }
+
+
+
+
+
+    private fun drawTransparentCube() {
         Matrix.setIdentityM(modelMatrix, 0)
-        Matrix.scaleM(modelMatrix, 0, 20f, 40f, 0f) // Увеличиваем размер фона галактики
-        Matrix.translateM(modelMatrix, 0, 0f, 0f, 0f) // Перемещаем фон вдаль по оси Z
 
-        // Вычисляем итоговую матрицу
+        if (currentPlanetIndex == 3) {
+            val earthX = getPlanetRadius(2) * cos(Math.toRadians(planetOrbitAngles[2].toDouble())).toFloat()
+            val earthZ = getPlanetRadius(2) * sin(Math.toRadians(planetOrbitAngles[2].toDouble())).toFloat()
+            val moonX = earthX + 1.5f * cos(Math.toRadians(moonOrbitAngle.toDouble())).toFloat()
+            val moonZ = earthZ + 1.5f * sin(Math.toRadians(moonOrbitAngle.toDouble())).toFloat()
+            val moonY = 1.5f * sin(Math.toRadians(moonOrbitAngle.toDouble())).toFloat()
+            Matrix.translateM(modelMatrix, 0, moonX, moonY, moonZ)
+            Matrix.scaleM(modelMatrix, 0, 0.6f, 0.6f, 0.6f)
+        } else {
+            val planetX = getPlanetRadius(currentPlanetIndex) * cos(Math.toRadians(planetOrbitAngles[currentPlanetIndex].toDouble())).toFloat()
+            val planetZ = getPlanetRadius(currentPlanetIndex) * sin(Math.toRadians(planetOrbitAngles[currentPlanetIndex].toDouble())).toFloat()
+            val scale = getPlanetScale(currentPlanetIndex)
+            Matrix.translateM(modelMatrix, 0, planetX, scale / 4f, planetZ)
+            Matrix.scaleM(modelMatrix, 0, scale * 2f, scale * 2f, scale * 2f)
+        }
+
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewMatrix, 0, modelMatrix, 0)
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewProjectionMatrix, 0)
+        transparentCube.draw(modelViewProjectionMatrix, floatArrayOf(1f, 1f, 1f, 0.3f))
+    }
 
-        // Отрисовываем фон
+
+    // Пример функции для получения масштаба планеты
+    private fun getPlanetScale(planetIndex: Int): Float {
+        return when (planetIndex) {
+            0 -> 0.5f  // Меркурий
+            1 -> 0.7f  // Венера
+            2 -> 0.8f  // Земля
+            4 -> 0.6f  // Марс
+            5 -> 1.5f  // Юпитер
+            6 -> 1.3f  // Сатурн
+            7 -> 1.1f  // Уран
+            else -> 1.0f
+        }
+    }
+
+    private fun getPlanetRadius(planetIndex:Int):Float{
+        return when (planetIndex) {
+            0 -> 3f // Меркурий
+            1 -> 5f // Венера
+            2 -> 8f // Земля
+            4 -> 12f // Марс
+            5 -> 15f // Юпитер
+            6 -> 20f // Сатурн
+            7 -> 25f // Уран
+            else -> 0f
+        }
+    }
+
+
+    private fun drawBackground() {
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
+        Matrix.setIdentityM(modelMatrix, 0)
+        Matrix.scaleM(modelMatrix, 0, 20f, 40f, 0f)
+        Matrix.translateM(modelMatrix, 0, 0f, 0f, 0f)
+        Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewMatrix, 0, modelMatrix, 0)
+        Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewProjectionMatrix, 0)
         galaxyBackground.draw(modelViewProjectionMatrix)
-
-        // Включаем буфер глубины обратно для отрисовки остальных объектов
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
     }
 
 
 
     private fun setupCamera() {
-        // Камера выше по оси Y для лучшего обзора
-        val eyeX = 0f
-        val eyeY = 30f
-        val eyeZ = 70f // Камера на удалении 70 единиц от Солнца
+        val eyeX = 2f
+        val eyeY = 20f
+        val eyeZ = 70f
         Matrix.setLookAtM(viewMatrix, 0, eyeX, eyeY, eyeZ, 0f, 0f, 0f, 0f, 1f, 0f)
     }
 
@@ -129,29 +193,22 @@ class MyGLRenderer(private val context: Context) : GLSurfaceView.Renderer {
         drawPlanet(venus, 5f, planetOrbitAngles[1], -planetRotationAngles[1], 0.7f)
         drawPlanet(earth, 8f, planetOrbitAngles[2], planetRotationAngles[2], 0.8f)
         drawMoon(moon, earth, 1.5f, moonOrbitAngle, moonRotationAngle, 0.3f)
-        drawPlanet(mars, 12f, planetOrbitAngles[3], planetRotationAngles[3], 0.6f)
-        drawPlanet(jupiter, 15f, planetOrbitAngles[4], planetRotationAngles[4], 1.5f)
-        drawSaturn(saturn, 20f, planetOrbitAngles[5], planetRotationAngles[5], 1.3f)
+        drawPlanet(mars, 12f, planetOrbitAngles[4], planetRotationAngles[4], 0.6f)
+        drawPlanet(jupiter, 15f, planetOrbitAngles[5], planetRotationAngles[5], 1.5f)
+        drawSaturn(saturn, 20f, planetOrbitAngles[6], planetRotationAngles[6], 1.3f)
         drawSaturnRing()
-        drawPlanet(uranus, 25f, planetOrbitAngles[6], planetRotationAngles[6], 1.1f)
+        drawPlanet(uranus, 25f, planetOrbitAngles[7], planetRotationAngles[7], 1.1f)
     }
 
     private fun drawSaturnRing() {
         Matrix.setIdentityM(modelMatrix, 0)
-
-        // Получаем текущее положение Сатурна для синхронизации кольца с его положением
-        val saturnX = 20f * cos(Math.toRadians(planetOrbitAngles[5].toDouble())).toFloat()
-        val saturnZ = 20f * sin(Math.toRadians(planetOrbitAngles[5].toDouble())).toFloat()
-
-        Matrix.translateM(modelMatrix, 0, saturnX, 0f, saturnZ)
-
-        //Matrix.rotateM(modelMatrix, 0, 45f, 1f, 1f, 0f)
+        val x = 20f * cos(Math.toRadians(planetOrbitAngles[6].toDouble())).toFloat()
+        val z = 20f * sin(Math.toRadians(planetOrbitAngles[6].toDouble())).toFloat()
+        Matrix.translateM(modelMatrix, 0, x, 0f, z)
         Matrix.rotateM(modelMatrix, 0, saturnRingRotationAngle, 0f, 0f, 1f)
         Matrix.scaleM(modelMatrix, 0, 0.5f, 0.5f, 0.5f)
-
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewMatrix, 0, modelMatrix, 0)
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewProjectionMatrix, 0)
-
         saturnRing.draw(modelViewProjectionMatrix)
     }
 
@@ -222,19 +279,19 @@ class MyGLRenderer(private val context: Context) : GLSurfaceView.Renderer {
         planetOrbitAngles[0] += 1.2f // Меркурий
         planetOrbitAngles[1] += 0.9f // Венера
         planetOrbitAngles[2] += 0.6f // Земля
-        planetOrbitAngles[3] += 0.5f // Марс
-        planetOrbitAngles[4] += 0.2f // Юпитер
-        planetOrbitAngles[5] += 0.1f // Сатурн
-        planetOrbitAngles[6] += 0.07f // Уран
+        planetOrbitAngles[4] += 0.5f // Марс
+        planetOrbitAngles[5] += 0.2f // Юпитер
+        planetOrbitAngles[6] += 0.1f // Сатурн
+        planetOrbitAngles[7] += 0.07f // Уран
 
         // Обновляем углы вращения планет
         planetRotationAngles[0] += rotationSpeed
         planetRotationAngles[1] += -rotationSpeed
         planetRotationAngles[2] += rotationSpeed
-        planetRotationAngles[3] += rotationSpeed
         planetRotationAngles[4] += rotationSpeed
         planetRotationAngles[5] += rotationSpeed
         planetRotationAngles[6] += rotationSpeed
+        planetRotationAngles[7] += rotationSpeed
         saturnRingRotationAngle += rotationSpeed
 
 
@@ -245,12 +302,9 @@ class MyGLRenderer(private val context: Context) : GLSurfaceView.Renderer {
 
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        //область, где будет отрисовываться графика
         GLES20.glViewport(0, 0, width, height)
 
-        //соотношение сторон
         val aspectRatio = width.toFloat() / height.toFloat()
-        //матрица проекции из 3D в 2D
         Matrix.perspectiveM(projectionMatrix, 0, 45f, aspectRatio, 1f, 100f)
     }
 

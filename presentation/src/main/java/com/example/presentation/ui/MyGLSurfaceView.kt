@@ -11,4 +11,21 @@ class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
         renderer = MyGLRenderer(context)
         setRenderer(renderer)
     }
+
+    fun selectNextPlanet():Int {
+
+            renderer.selectNextPlanet()
+
+        return renderer.returnPlanetIndex()
+    }
+
+    fun selectPreviousPlanet():Int {
+
+            renderer.selectPreviousPlanet()
+
+
+        return renderer.returnPlanetIndex()
+    }
+
+
 }
