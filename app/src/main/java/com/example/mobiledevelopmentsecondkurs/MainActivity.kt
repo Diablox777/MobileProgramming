@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.data.repository.NewsRepositoryImpl
 import com.example.mobiledevelopmentsecondkurs.ui.theme.MobileDevelopmentSecondKursTheme
+import com.example.presentation.ui.MoonGLSurfaceView
 import com.example.presentation.ui.MyGLSurfaceView
 import com.example.presentation.ui.NewsScreen
 import com.example.presentation.viewmodel.NewsViewModel
@@ -69,14 +70,14 @@ fun MainScreen(newsViewModel: NewsViewModel) {
     ) {
         composable("menu") { MenuScreen(navController) }
         composable("lab1") { NewsScreen(newsViewModel = newsViewModel) }
-        composable("lab2") { Lab2Screen(navController) }
-        composable("planetDetail/{planetName}/{planetInfo}/{isMoon}") { backStackEntry ->
+        composable("lab6") { Lab6Screen(navController) }
+        /*composable("planetDetail/{planetName}/{planetInfo}/{isMoon}") { backStackEntry ->
             PlanetDetailScreen(
                 planetName = backStackEntry.arguments?.getString("planetName") ?: "",
                 planetInfo = backStackEntry.arguments?.getString("planetInfo") ?: "Информация отсутствует",
                 isMoon = backStackEntry.arguments?.getString("isMoon") == "true"
             )
-        }
+        }*/
     }
 }
 
@@ -93,12 +94,12 @@ fun MenuScreen(navController: NavHostController) {
             Text(text = "Lab 1")
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { navController.navigate("lab2") }) { Text(text = "Lab 6") }
+        Button(onClick = { navController.navigate("lab6") }) { Text(text = "Lab 6") }
     }
 }
 
 @Composable
-fun Lab2Screen(navController: NavController) {
+fun Lab6Screen(navController: NavController) {
     val context = LocalContext.current
     val glSurfaceView = remember { MyGLSurfaceView(context) }
     val planetsList = listOf("Меркурий", "Венера", "Земля", "Луна", "Марс", "Юпитер", "Сатурн", "Уран")
