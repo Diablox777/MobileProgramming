@@ -8,7 +8,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-class Sphere(private val textureId: Int, private val radius: Float = 1.0f, private val stacks: Int = 30, private val slices: Int = 30) {
+open class Sphere(private val textureId: Int, private val radius: Float = 1.0f, private val stacks: Int = 30, private val slices: Int = 30) {
 
     private val vertexBuffer: FloatBuffer
     private val textureBuffer: FloatBuffer

@@ -6,13 +6,11 @@ import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import com.example.presentation.R
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class MoonGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
+
     private lateinit var moon: Sphere
     private lateinit var moonSphere: PhongSphere
 
@@ -23,19 +21,6 @@ class MoonGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
 
     private val lightPos = FloatArray(4)
     private val viewPos = FloatArray(3)
-
-
-    private val planetOrbitAngles = FloatArray(8) { 0f } // Для орбит планет
-    private val planetRotationAngles = FloatArray(8) { 0f } // Для вращения планет вокруг своей оси
-    private var moonOrbitAngle = 0f
-    private var moonRotationAngle = 0f
-    private var saturnRingRotationAngle = 0f
-
-    private val rotationSpeed = 0.5f // Скорость вращения планет
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
-
-    private var currentPlanetIndex = 2
-    private lateinit var planets: List<Pair<String, Sphere>>
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0f, 0f, 0f, 1f)
@@ -62,7 +47,6 @@ class MoonGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
         Matrix.translateM(modelMatrix, 0, 0f, 0f, 0f)
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewMatrix, 0, modelMatrix, 0)
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewProjectionMatrix, 0)
-        //galaxyBackground.draw(modelViewProjectionMatrix)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
     }
 

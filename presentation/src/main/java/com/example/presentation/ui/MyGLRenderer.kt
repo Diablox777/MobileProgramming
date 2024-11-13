@@ -1,5 +1,6 @@
 package com.example.presentation.ui
 
+import BlackHole
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.opengl.GLES20
@@ -25,21 +26,28 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
     private lateinit var jupiter: Sphere
     private lateinit var saturn: Sphere
     private lateinit var uranus: Sphere
+    private lateinit var neptune: Sphere
     private lateinit var moon: Sphere
     private lateinit var galaxyBackground: Square
     private lateinit var saturnRing: Ring
     private lateinit var transparentCube: Cube
+
+    private lateinit var blackHole: BlackHole
+
 
     private val modelMatrix = FloatArray(16)
     private val projectionMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
     private val modelViewProjectionMatrix = FloatArray(16)
 
-    private val planetOrbitAngles = FloatArray(8) { 0f } // Для орбит планет
-    private val planetRotationAngles = FloatArray(8) { 0f } // Для вращения планет вокруг своей оси
+    private val planetOrbitAngles = FloatArray(9) { 0f } // Для орбит планет
+    private val planetRotationAngles = FloatArray(9) { 0f } // Для вращения планет вокруг своей оси
     private var moonOrbitAngle = 0f
     private var moonRotationAngle = 0f
     private var saturnRingRotationAngle = 0f
+
+    private var blackHolePositionX = -30f
+    private var blackHolePositionY = 0f
 
     private val rotationSpeed = 0.5f // Скорость вращения планет
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -59,10 +67,13 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
         jupiter = Sphere(loadTexture(R.drawable.jupiter_texture))
         saturn = Sphere(loadTexture(R.drawable.saturn_texture))
         uranus = Sphere(loadTexture(R.drawable.uranus_texture))
+        neptune = Sphere(loadTexture(R.drawable.neptune_texture))
         moon = Sphere(loadTexture(R.drawable.moon_texture))
         saturnRing = Ring(loadTexture(R.drawable.saturn_texture), 5f, 3.5f, 64)
         galaxyBackground = Square(loadTexture(R.drawable.galaxy_texture))
         transparentCube = Cube()
+
+        blackHole = BlackHole(context, R.drawable.hole)
 
         planets = listOf(
             "Mercury" to mercury,
@@ -72,7 +83,8 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
             "Mars" to mars,
             "Jupiter" to jupiter,
             "Saturn" to saturn,
-            "Uranus" to uranus
+            "Uranus" to uranus,
+            "Neptune" to neptune
 
         )
     }
@@ -86,6 +98,8 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
         drawSun()
         drawOrbitingPlanets()
         drawTransparentCube()
+
+        drawBlackHole()
 
         scope.launch {
             updateOrbitAndRotationAngles()
@@ -142,6 +156,7 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
             5 -> 1.5f  // Юпитер
             6 -> 1.3f  // Сатурн
             7 -> 1.1f  // Уран
+            8 -> 0.5f
             else -> 1.0f
         }
     }
@@ -155,6 +170,7 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
             5 -> 15f // Юпитер
             6 -> 20f // Сатурн
             7 -> 25f // Уран
+            8 -> 28f
             else -> 0f
         }
     }
@@ -198,6 +214,7 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
         drawSaturn(saturn, 20f, planetOrbitAngles[6], planetRotationAngles[6], 1.3f)
         drawSaturnRing()
         drawPlanet(uranus, 25f, planetOrbitAngles[7], planetRotationAngles[7], 1.1f)
+        drawPlanet(neptune, 28f, planetOrbitAngles[8], planetRotationAngles[8], 0.5f)
     }
 
     private fun drawSaturnRing() {
@@ -210,6 +227,29 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewMatrix, 0, modelMatrix, 0)
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewProjectionMatrix, 0)
         saturnRing.draw(modelViewProjectionMatrix)
+    }
+
+    private fun drawBlackHole() {
+        // Медленное движение черной дыры с плавным изменением координат
+        blackHolePositionX += 0.05f // Медленное перемещение по X
+        blackHolePositionY += 0.01f // Медленное перемещение по Y
+
+        // Сброс позиции черной дыры при выходе за пределы экрана
+        if (blackHolePositionX > 30f) {
+            blackHolePositionX = -40f
+            blackHolePositionY = -5f
+        }
+
+        // Устанавливаем матрицу трансформации для черной дыры
+        Matrix.setIdentityM(modelMatrix, 0)
+        Matrix.translateM(modelMatrix, 0, blackHolePositionX, blackHolePositionY, -70f) // Позиция черной дыры позади сцены
+        Matrix.rotateM(modelMatrix, 0, 35f, 0f, 1f, 0f) // Угол 90 градусов для перпендикулярности взгляду камеры
+        Matrix.scaleM(modelMatrix, 0, 4f, 4f, 4f) // Размер черной дыры
+
+        // Объединение матриц и отрисовка черной дыры
+        Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewMatrix, 0, modelMatrix, 0)
+        Matrix.multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, modelViewProjectionMatrix, 0)
+        blackHole.draw(modelViewProjectionMatrix, -5f)
     }
 
     private fun drawMoon(moon: Sphere, earth: Sphere, orbitRadius: Float, orbitAngle: Float, rotationAngle: Float, scale: Float) {
@@ -283,6 +323,7 @@ class MyGLRenderer(private val context: Context, ) : GLSurfaceView.Renderer {
         planetOrbitAngles[5] += 0.2f // Юпитер
         planetOrbitAngles[6] += 0.1f // Сатурн
         planetOrbitAngles[7] += 0.07f // Уран
+        planetOrbitAngles[8] += 0.1f
 
         // Обновляем углы вращения планет
         planetRotationAngles[0] += rotationSpeed
